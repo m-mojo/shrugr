@@ -16,9 +16,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { films, type Film } from "../lib/catalog";
+import type { Film } from "../lib/catalog";
 import { buildRecommendationChoices, pickRecommendation, type RuntimeChoice } from "../lib/recommendation";
-import { fetchPublishedFilms } from "../lib/supabase/catalog";
 
 type Mood = "unwind" | "learn" | "hyped" | "feel" | "escape";
 type Delivery = "hooked" | "soak" | "brain" | "simple";
@@ -68,9 +67,9 @@ export default function Home() {
   const [showBackups, setShowBackups] = useState(false);
   const [showVisuals, setShowVisuals] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [catalogFilms, setCatalogFilms] = useState(films);
+  const [liveFilms, setLiveFilms] = useState<Film[]>([]);
   const [searchingLive, setSearchingLive] = useState(false);
-  const [catalogSource, setCatalogSource] = useState<"saved" | "live">("saved");
+  const [searchError, setSearchError] = useState<string | null>(null);
   const applicationJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
@@ -90,22 +89,10 @@ export default function Home() {
     } catch { /* keep defaults when storage is unavailable */ }
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    void fetchPublishedFilms()
-      .then((databaseFilms) => {
-        if (active && databaseFilms) setCatalogFilms(databaseFilms);
-      })
-      .catch((error: unknown) => {
-        console.warn("Supabase catalog unavailable; using local catalog.", error);
-      });
-    return () => { active = false; };
-  }, []);
-
   const matches = useMemo(
     () =>
       buildRecommendationChoices({
-        films: catalogFilms,
+        films: liveFilms,
         providers,
         runtime,
         interruptions,
@@ -114,41 +101,49 @@ export default function Home() {
         visual,
         seen,
       }),
-    [catalogFilms, providers, runtime, interruptions, mood, delivery, visual, seen],
+    [liveFilms, providers, runtime, interruptions, mood, delivery, visual, seen],
   );
 
   const chooseMovie = async (excludedTitles = seen) => {
     setSearchingLive(true);
-    let candidates = catalogFilms;
+    setSearchError(null);
     try {
       const response = await fetch(`/api/movies?runtime=${runtime}`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Live search returned HTTP ${response.status}`);
-      const payload = (await response.json()) as { movies?: Film[] };
-      if (!payload.movies?.length) throw new Error("Live search returned no usable movie records.");
-      candidates = payload.movies.map((film) => ({ ...film, isLive: true }));
-      setCatalogFilms(candidates);
-      setCatalogSource("live");
-    } catch (error) {
-      console.warn("Live TMDB search unavailable; using the saved catalog.", error);
-      setCatalogSource("saved");
-    }
+      const payload = (await response.json()) as { movies?: Film[]; source?: string; error?: string };
+      if (!response.ok) throw new Error(payload.error || `Live search returned HTTP ${response.status}.`);
+      if (payload.source !== "tmdb-live") throw new Error("The movie service did not return live TMDB results.");
+      if (!Array.isArray(payload.movies) || payload.movies.length === 0) {
+        throw new Error("TMDB returned no usable movie records. Please try again.");
+      }
 
-    const freshMatches = buildRecommendationChoices({
-      films: candidates,
-      providers,
-      runtime,
-      interruptions,
-      mood,
-      delivery,
-      visual,
-      seen: excludedTitles,
-    });
-    const pick = pickRecommendation(freshMatches, current);
-    setCurrent(pick);
-    setScreen("result");
-    setShowBackups(false);
-    setSearchingLive(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+      const candidates = payload.movies.map((film) => ({ ...film, isLive: true }));
+      const freshMatches = buildRecommendationChoices({
+        films: candidates,
+        providers,
+        runtime,
+        interruptions,
+        mood,
+        delivery,
+        visual,
+        seen: excludedTitles,
+      });
+      const pick = pickRecommendation(freshMatches, current);
+      if (!pick) {
+        throw new Error("No new live films matched your choices. Please try again or adjust your runtime.");
+      }
+
+      setLiveFilms(candidates);
+      setCurrent(pick);
+      setScreen("result");
+      setShowBackups(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Live movie search failed.";
+      console.warn("Live TMDB search failed.", error);
+      setSearchError(`${message} Your recommendation was not replaced with a saved-catalog pick.`);
+    } finally {
+      setSearchingLive(false);
+    }
   };
 
   const toggleProvider = (provider: string) => {
@@ -172,6 +167,7 @@ export default function Home() {
         <button className="wordmark" aria-label="Shrugr home" onClick={() => setScreen("start")}><span className="brand-mark">s<span>.</span></span><span className="brand-name">shrugr</span></button>
         <div className="topbar-right"><span className="status-dot" /> <span>YOUR MOVIE, FOUND</span><button aria-label="Reset to home" className="icon-button" onClick={() => setScreen("start")}><X size={16} /></button></div>
       </header>
+      {searchError && <div className="toast live-search-error" role="alert">{searchError}</div>}
 
       {screen === "start" && <section className="welcome-page fade-in">
         <div className="hero-copy">
@@ -188,7 +184,7 @@ export default function Home() {
           <div className="floating-note"><span className="note-spark">✳</span><div><b>your kind of night</b><small>just a little more you</small></div></div>
           <div className="art-caption">A GOOD FILM DOESN&apos;T NEED A COMMITTEE.</div>
         </div>
-          <div className="provider-preview"><div className="provider-label">PRIORITIZE THESE SERVICES IN OUR SAVED PICKS</div><div className="provider-grid">{providerList.map((provider, i) => <button key={provider} className={`provider-chip ${providers.includes(provider) ? "selected" : ""}`} onClick={() => toggleProvider(provider)} aria-pressed={providers.includes(provider)}><span className={`provider-glyph glyph-${i}`}>{["N", "M", "▶", "h", "✦", "●", "m", "C"][i]}</span>{provider}{providers.includes(provider) && <Check size={12} className="provider-check" />}</button>)}</div><p className="provider-footnote">Live TMDB suggestions don&apos;t include streaming availability checks. Preferences stay on this device. <button onClick={() => setProviders([])}>Clear all</button></p></div>
+          <div className="provider-preview"><div className="provider-label">YOUR STREAMING SERVICES</div><div className="provider-grid">{providerList.map((provider, i) => <button key={provider} className={`provider-chip ${providers.includes(provider) ? "selected" : ""}`} onClick={() => toggleProvider(provider)} aria-pressed={providers.includes(provider)}><span className={`provider-glyph glyph-${i}`}>{["N", "M", "▶", "h", "✦", "●", "m", "C"][i]}</span>{provider}{providers.includes(provider) && <Check size={12} className="provider-check" />}</button>)}</div><p className="provider-footnote">Live picks aren&apos;t filtered by these services; availability isn&apos;t checked. Preferences stay on this device. <button onClick={() => setProviders([])}>Clear all</button></p></div>
         <div className="bottom-note"><span className="tiny-spark">✳</span> GOOD PICKING IS OVERRATED. GOOD WATCHING ISN&apos;T.</div>
         {showToast && <div className="toast" role="status">Couch mode is on the way. Solo movie night still counts.</div>}
       </section>}
@@ -221,7 +217,7 @@ export default function Home() {
       </section>}
       {screen === "result" && !current && <section className="empty-result fade-in" aria-live="polite"><span className="empty-spark">✳</span><div className="eyebrow">NO MATCH THIS TIME</div><h1>That&apos;s a very specific kind of night.</h1><p>We couldn&apos;t find a film that fits every filter and service. Loosen one thing and we&apos;ll find your movie.</p><button className="primary-button" onClick={() => setScreen("vibe")}>Adjust my vibe <ArrowRight size={16} /></button><button className="text-button" onClick={() => { setProviders([]); setRuntime("any"); setInterruptions(false); setMood(null); setDelivery(null); setVisual(null); setScreen("vibe"); }}>Clear filters and try again</button></section>}
       <footer className="site-footer"><span>© 2026 SHRUGR</span><span>MADE FOR THE MOMENT, NOT THE ALGORITHM <span className="footer-dot">✳</span></span><span><Link href="/collections">CURATED PICKS</Link></span><span><a href="https://shrugr.de5.net/">SHRUGR.DE5.NET</a></span></footer>
-      {showToast && screen === "result" && <div className="toast" role="status"><Check size={15} /> {catalogSource === "live" ? "This is a live TMDB movie suggestion; streaming availability is not checked." : "Live movie search was unavailable; showing the saved catalog instead."}</div>}
+      {showToast && screen === "result" && <div className="toast" role="status"><Check size={15} /> This is a live TMDB movie suggestion; streaming availability is not checked.</div>}
     </main>
   );
 }
