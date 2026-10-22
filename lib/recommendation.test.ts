@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildRecommendationChoices, pickRecommendation, type Film } from "./recommendation";
+import { buildRecommendationChoices, pickRecommendation, type RecommendationFilm } from "./recommendation";
 
-const films: Film[] = [
+const films: RecommendationFilm[] = [
   {
     title: "Alpha",
     runtime: 90,

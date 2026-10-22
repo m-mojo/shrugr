@@ -98,6 +98,8 @@ export default function Home() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem("shrugr-providers");
+      // This runs after hydration so localStorage can override the server-safe defaults.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored) setProviders(JSON.parse(stored) as string[]);
     } catch { /* keep defaults when storage is unavailable */ }
   }, []);
