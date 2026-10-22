@@ -108,3 +108,26 @@ test("empty match states are handled gracefully", () => {
   assert.equal(matches.length, 0);
   assert.equal(pickRecommendation(matches, null), null);
 });
+
+test("unknown provider and interruption data do not exclude live candidates", () => {
+  const liveFilm: RecommendationFilm = {
+    title: "Live suggestion",
+    runtime: 102,
+    providers: [],
+    providerAvailabilityKnown: false,
+    interruption: null,
+  };
+
+  const matches = buildRecommendationChoices({
+    films: [liveFilm],
+    providers: ["Netflix"],
+    runtime: "medium",
+    interruptions: true,
+    mood: null,
+    delivery: null,
+    visual: null,
+    seen: [],
+  });
+
+  assert.deepEqual(matches, [liveFilm]);
+});

@@ -10,7 +10,9 @@ export type Film = RecommendationFilm & {
   moods: Mood[];
   delivery: Delivery[];
   visual: Visual[];
-  interruption: number;
+  interruption: number | null;
+  genericProfile?: boolean;
+  isLive?: boolean;
   note: string;
   reason: string;
   tmdbId?: number;

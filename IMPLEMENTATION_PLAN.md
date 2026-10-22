@@ -3,7 +3,7 @@
 **Product:** Shrugr — a context-aware movie picker  
 **Production domain target:** `shrugr.ro.to`  
 **Status date:** 2026-10-22  
-**Plan status:** Local foundation, the core solo flow, the soft-preference recommendation contract, and basic SEO scaffolding are implemented. MVP includes TMDB integration, automated catalog imports, a managed catalog with editorial admin tools, and programmatic SEO with expanded structured data and dynamic share cards. Supabase remains an undecided backend option; multi-device group rooms are deferred.
+**Plan status:** Local foundation, the core solo flow, the soft-preference recommendation contract, and basic SEO scaffolding are implemented. MVP includes TMDB integration, automated catalog imports, a managed catalog with editorial admin tools, and programmatic SEO with expanded structured data and dynamic share cards. Supabase is selected for the managed catalog; project provisioning and app integration remain pending. Multi-device group rooms are deferred.
 
 ## Product goal
 
@@ -33,7 +33,9 @@ Help someone choose a film for their current moment in under 45 seconds. Match a
 - Runtime band semantics need review: the displayed 90–120 minute option currently imposes a 120-minute ceiling but no 90-minute lower bound.
 - Recommendation behavior is now aligned with the product contract: mood, delivery, and visual choices rank candidates without silently excluding valid films, while hard filters and no-match states remain visible and actionable.
 - Backup choices are the next ranked results, not yet deliberately differentiated by alternate pacing/intent. Affirmation handling is partly curated but also has generic runtime fallbacks.
-- A server-side TMDB seed importer and catalog-backed film/collection SEO routes are implemented. TMDB metadata has not yet been imported because credentials are not configured. A managed catalog/admin workflow is not implemented; its backend provider and admin access policy remain undecided. Supabase Realtime, user accounts, analytics, and group sync remain outside MVP.
+- A server-side TMDB seed importer and catalog-backed film/collection SEO routes are implemented. TMDB metadata imports successfully into the local JSON catalog. A privileged sync command now upserts refreshed TMDB metadata plus Shrugr-authored fields into Supabase; it requires a server-only Supabase Secret/service-role key that is not yet configured locally. The solo picker reads published database films with local fallback. Admin UI/auth and SEO-route database integration remain outstanding. Supabase Realtime, user accounts, analytics, and group sync remain outside MVP.
+- A poster-only TMDB refresh command is available to update poster paths without replacing existing catalog metadata; it requires the same server-side TMDB token and serves images through TMDB's CDN rather than storing image files locally.
+- The solo picker now makes a live TMDB discovery request per pick and ranks a bounded, randomized candidate batch using generic genre-derived mood/delivery/visual signals. It does not scan every TMDB title, and live results do not include verified streaming availability or editorial pause-safety claims.
 - Confirm TMDB image/API attribution and usage terms before production. The app currently uses remote poster images.
 - The domain is a target only: DNS, hosting, and deployment are not configured here.
 
@@ -47,8 +49,8 @@ Help someone choose a film for their current moment in under 45 seconds. Match a
 | Runtime and interruption preferences | Implemented; verify edge cases | Apply the chosen runtime window and pause-friendliness as hard constraints; correct the 90–120 minute boundary. |
 | Mood, delivery, and optional visual vibe | Implemented; polish optional | Use these as soft ranking signals; style selection must remain skippable. |
 | Recommendation and recovery | Implemented; expand tests | Show one pick, fit reasons and viewing note, basic alternatives, spin-again/seen-title skip, and a clear no-match/all-seen recovery. Purposefully differentiated backups are not required for MVP. |
-| TMDB metadata integration and automated catalog imports | Importer implemented; requires token/run | Run `npm run catalog:import` with a server-only TMDB token; refreshes the seeded film metadata while retaining Shrugr-authored tags and notes. Production schedule and persistence depend on the selected backend/host. |
-| Managed catalog and editorial admin tools | Blocked on provider choice | Store catalog records and Shrugr-authored tags/notes in a managed data source; provide protected review/editing. Choose provider and admin authentication/authorization before implementing write access. |
+| TMDB metadata integration and automated catalog imports | TMDB import verified; Supabase sync implemented, requires server-only key | Run `npm run catalog:import` to refresh local metadata, `npm run catalog:sync` to refresh and upsert films into Supabase, or `npm run catalog:posters:sync` for poster-only refresh plus Supabase sync. Production schedule and persistence depend on the selected backend/host. |
+| Managed catalog and editorial admin tools | Supabase read connection established; catalog empty | Seed published records, then build protected review/editing. Configure administrator authentication/authorization before enabling write access. |
 | Provider preferences and availability | Preferences implemented; live availability not implemented | Keep user preferences local. Integrate a permitted regional availability source only if available; identify freshness and unknown states clearly and do not claim unsupported availability. |
 | Programmatic SEO, structured data, and dynamic share cards | Initial implementation added | Static film detail and curated collection routes, canonical metadata, Movie/ItemList JSON-LD, generated sitemap entries, and dynamic Open Graph images are in place; review content quality and production URLs after catalog data is populated. |
 | Responsive and accessible experience | Partially implemented; required before launch | Validate mobile layout, keyboard and screen-reader use, contrast, reduced motion, and clear provider/demo wording. |
@@ -58,7 +60,7 @@ Help someone choose a film for their current moment in under 45 seconds. Match a
 
 | Feature | Decision |
 |---|---|
-| Supabase specifically | Provider choice not yet decided. Managed catalog/admin functionality is in MVP and requires a suitable persistence/backend choice; assess Supabase alongside alternatives rather than assuming it is excluded. |
+| Supabase specifically | Selected for MVP managed catalog persistence. Apply the prepared schema and build protected catalog/admin integration. Supabase Realtime remains deferred with multi-device rooms. |
 | Live regional provider availability and verified deep links | Defer. Continue clear illustrative/demo labeling; do not claim current availability. |
 | User accounts, cloud-synced preferences, or cross-device history | Defer; retain browser-local preferences. |
 | Couch/group recommendations and multi-device rooms/Realtime | Defer; retain the coming-soon placeholder. |
@@ -94,11 +96,11 @@ Checklist notation: `[x]` complete, `[~]` partially implemented, `[ ]` not yet c
 **Acceptance criteria:** a first-time mobile user can complete the flow quickly; hard constraints are honored; no match is explained instead of silently relaxing filters; recommendation explanations correspond to actual data; provider availability is not presented as verified.
 
 ### Phase 2 — Production catalog and data pipeline
-**Status: Partially implemented.** The repeatable TMDB import script and typed catalog merge are in place. Configure a token and run the importer to populate metadata. Managed persistence and protected editorial admin/review tools await a backend and authentication decision. Live regional provider availability remains deferred unless a suitable permitted source is selected.
+**Status: Partially implemented.** The repeatable TMDB import script and typed catalog merge are in place. The local metadata catalog is populated; the Supabase schema is applied and the solo picker read connection is verified, but no published films are seeded yet. Configure admin authentication and implement editorial tools. Live regional provider availability remains deferred unless a suitable permitted source is selected.
 1. Confirm TMDB API access, rate-limit handling, attribution requirements, and caching policy. Keep credentials server-side and define an import/refresh cadence.
-2. Select a managed persistence/backend provider for catalog and editorial workflows. Supabase is an option, not a confirmed requirement; define environments, access controls, backups, and project ownership.
+2. [x] Select Supabase and apply the initial catalog schema/RLS policies. Define environments, access controls, backups, and project ownership before launch.
 3. Implement the production catalog model: TMDB ID and metadata; runtime/year/poster/backdrop; editorial delivery, density, interruption and pause-complexity tags; cinematography axes/quadrant; intent tags; curated viewing note; and source/provenance fields.
-4. [~] A secure local TMDB import script exists. Extend it to production scheduled refresh after backend/hosting selection; keep API credentials server-side, validate external payloads, respect provider limits, and make imports idempotent.
+4. [~] The local TMDB importer is verified and a Supabase sync mode exists. Configure a server-only Supabase Secret key and run the sync; later extend to scheduled refresh after hosting selection. Keep API credentials server-side, validate external payloads, respect provider limits, and make imports idempotent.
 5. Build a protected internal tagging/review workflow after selecting catalog persistence and administrator authentication. Seed a smaller quality-reviewed catalog first, then scale only when tagging definitions and review capacity are proven.
 6. Add catalog checks for duplicate IDs, missing or contradictory tags, invalid runtimes, unsupported values, poster failures, and stale/broken destination links.
 7. **Deferred:** Add localized availability snapshots with territory and checked-at timestamps only after selecting a permitted data source. Distinguish streaming, rent/buy, unknown, and stale states; show a watch CTA only when its destination is verified and permitted.
@@ -168,8 +170,8 @@ Checklist notation: `[x]` complete, `[~]` partially implemented, `[ ]` not yet c
 ## Technical and operational decisions to settle
 
 - TMDB metadata integration and catalog refresh are MVP requirements; confirm current terms, attribution, rate limits, and caching before launch.
-- Vercel is the selected frontend deployment host. A managed catalog requires a persistence/backend provider; that provider is not yet selected.
-- Supabase/Postgres is under consideration for the managed catalog. Supabase Realtime remains deferred with multi-device rooms.
+- Vercel is the selected frontend deployment host. Supabase/Postgres is selected for the managed catalog; the project, initial schema, and solo-picker read connection are in place. Catalog seeding, admin integration, and production hardening remain outstanding.
+- Supabase Realtime remains deferred with multi-device rooms.
 - Editorial tagging definitions and quality-review ownership remain to be finalized.
 - Privacy/retention for analytics and group-room state remains to be finalized.
 - Deployment target, domain/DNS ownership, release/rollback process, and free-tier limits remain to be implemented and verified.
@@ -182,14 +184,14 @@ From the project root:
 - `npm run dev` — start the local app.
 - `npm run build` — compile the production app.
 
-The prototype and static SEO pages can run without a database. The repeatable TMDB import requires a server-side token; the managed catalog/admin feature requires a chosen persistence/backend provider and an administrator access policy. Supabase remains undecided; do not provision it until that provider choice is made.
+The prototype and static SEO pages can run without a database. The solo picker reads published films from Supabase when available and otherwise falls back to the bundled catalog. The current Supabase catalog is empty, so seed published records before expecting database content to appear. Admin and SEO routes are not yet connected.
 
 ## Hosting & Deployment Specifications
 
 - Primary hosting platform: Vercel
 - Why: Native Next.js App Router hosting, global edge deployment, built-in preview environments, and serverless API support.
 - Build strategy: Hybrid rendering using SSR for dynamic session flows and ISR for programmatic SEO pages such as `/watch/[slug]` so TTFB stays low globally.
-- Catalog persistence/backend: required for MVP managed catalog and editorial tools; provider selection remains open. Supabase Realtime for synchronized rooms is deferred.
+- Catalog persistence/backend: Supabase is selected; the read-only picker integration is established, while editorial admin tools remain to be built. Supabase Realtime for synchronized rooms is deferred.
 - Media and asset delivery: Vercel Edge Network / TMDB CDN
 - Movie posters and backdrop assets: served directly via TMDB’s CDN.
 - Dynamic OG images: rendered on the fly using Vercel `@vercel/og` edge functions for social sharing previews.
@@ -197,10 +199,10 @@ The prototype and static SEO pages can run without a database. The repeatable TM
 
 ## Backend and post-MVP options
 
-For MVP, choose a managed catalog backend before provisioning. Supabase is one candidate; confirm its fit and current plan limits before setup. Realtime rooms remain post-MVP:
+For MVP, Supabase is selected for managed catalog persistence. Provision the project and confirm current plan limits before setup. Realtime rooms remain post-MVP:
 
 - Vercel: use the free hobby/personal plan for the app and preview deployments if available for this project.
-- Supabase: consider Postgres for catalog persistence/admin tooling; Realtime is only needed if synchronized rooms are approved later.
+- Supabase: use Postgres for catalog persistence/admin tooling; Realtime is only needed if synchronized rooms are approved later.
 - TMDB: required for MVP metadata integration; confirm current access, rate limits, attribution, and caching rules.
 - Local browser storage: keep user preferences and recent state local to reduce database reads and keep the app fast.
 - Design principle: use the free tier for initial launch, then upgrade only when project scale, room usage, or API volume require it.

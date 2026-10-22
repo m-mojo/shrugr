@@ -1,1 +1,164 @@
-{}
+{
+  "the-grand-budapest-hotel": {
+    "tmdbId": 120467,
+    "title": "The Grand Budapest Hotel",
+    "year": 2014,
+    "runtime": 100,
+    "posterPath": "/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg",
+    "genres": [
+      "Comedy",
+      "Drama"
+    ],
+    "overview": "The Grand Budapest Hotel tells of a legendary concierge at a famous European hotel between the wars and his friendship with a young employee who becomes his trusted protégé. The story involves the theft and recovery of a priceless Renaissance painting, the battle for an enormous family fortune and the slow and then sudden upheavals that transformed Europe during the first half of the 20th century.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "knives-out": {
+    "tmdbId": 546554,
+    "title": "Knives Out",
+    "year": 2019,
+    "runtime": 131,
+    "posterPath": "/pThyQovXQrw2m0s9x82twj48Jq4.jpg",
+    "genres": [
+      "Comedy",
+      "Crime",
+      "Mystery"
+    ],
+    "overview": "When renowned crime novelist Harlan Thrombey is found dead at his estate just after his 85th birthday, the inquisitive and debonair Detective Benoit Blanc is mysteriously enlisted to investigate. From Harlan's dysfunctional family to his devoted staff, Blanc sifts through a web of red herrings and self-serving lies to uncover the truth behind Harlan's untimely death.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "arrival": {
+    "tmdbId": 329865,
+    "title": "Arrival",
+    "year": 2016,
+    "runtime": 116,
+    "posterPath": "/pEzNVQfdzYDzVK0XqxERIw2x2se.jpg",
+    "genres": [
+      "Drama",
+      "Science Fiction",
+      "Mystery"
+    ],
+    "overview": "Taking place after alien crafts land around the world, an expert linguist is recruited by the military to determine whether they come in peace or are a threat.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "spider-man-into-the-spider-verse": {
+    "tmdbId": 324857,
+    "title": "Spider-Man: Into the Spider-Verse",
+    "year": 2018,
+    "runtime": 117,
+    "posterPath": "/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg",
+    "genres": [
+      "Animation",
+      "Action",
+      "Adventure",
+      "Science Fiction"
+    ],
+    "overview": "Struggling to find his place in the world while juggling school and family, Brooklyn teenager Miles Morales is unexpectedly bitten by a radioactive spider and develops unfathomable powers just like the one and only Spider-Man. While wrestling with the implications of his new abilities, Miles discovers a super collider created by the madman Wilson \"Kingpin\" Fisk, causing others from across the Spider-Verse to be inadvertently transported to his dimension.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "chef": {
+    "tmdbId": 212778,
+    "title": "Chef",
+    "year": 2014,
+    "runtime": 114,
+    "posterPath": "/hyp8EXDmO4dSC8V6Q5jU7gD1kcg.jpg",
+    "genres": [
+      "Comedy"
+    ],
+    "overview": "When Chef Carl Casper suddenly quits his job at a prominent Los Angeles restaurant after refusing to compromise his creative integrity for its controlling owner, he is left to figure out what's next. Finding himself in Miami, he teams up with his ex-wife, his friend and his son to launch a food truck. Taking to the road, Chef Carl goes back to his roots to reignite his passion for the kitchen -- and zest for life and love.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "mad-max-fury-road": {
+    "tmdbId": 76341,
+    "title": "Mad Max: Fury Road",
+    "year": 2015,
+    "runtime": 121,
+    "posterPath": "/ulcAi4dKpAjHwYGS08vNyx9H6I9.jpg",
+    "genres": [
+      "Action",
+      "Adventure",
+      "Science Fiction"
+    ],
+    "overview": "An apocalyptic story set in the furthest reaches of our planet, in a stark desert landscape where humanity is broken, and most everyone is crazed fighting for the necessities of life. Within this world exist two rebels on the run who just might be able to restore order.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "perfect-blue": {
+    "tmdbId": 10494,
+    "title": "Perfect Blue",
+    "year": 1998,
+    "runtime": 81,
+    "posterPath": "/6WTiOCfDPP8XV4jqfloiVWf7KHq.jpg",
+    "genres": [
+      "Animation",
+      "Thriller"
+    ],
+    "overview": "Rising pop star Mima Kirigoe quits singing to pursue a career as an actress. After she takes up a role on a popular detective show, her handlers and collaborators begin turning up murdered. Harboring feelings of guilt and haunted by visions of her former self, Mima's reality and fantasy meld into a frenzied paranoia.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "before-sunrise": {
+    "tmdbId": 76,
+    "title": "Before Sunrise",
+    "year": 1995,
+    "runtime": 101,
+    "posterPath": "/kf1Jb1c2JAOqjuzA3H4oDM263uB.jpg",
+    "genres": [
+      "Drama",
+      "Romance"
+    ],
+    "overview": "An unexpected meeting on a train leads two travelers to spend an evening wandering through Vienna. As the night unfolds, they share stories and conversations about life and love, exploring new ideas while a quiet intimacy grows between them, knowing it may be their only night together.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "the-social-network": {
+    "tmdbId": 37799,
+    "title": "The Social Network",
+    "year": 2010,
+    "runtime": 121,
+    "posterPath": "/n0ybibhJtQ5icDqTp8eRytcIHJx.jpg",
+    "genres": [
+      "Drama"
+    ],
+    "overview": "In 2003, Harvard undergrad and computer programmer Mark Zuckerberg begins work on a new concept that eventually turns into the global social network known as Facebook. Six years later, Mark is one of the youngest billionaires ever, but his unprecedented success leads to both personal and legal complications when he ends up on the receiving end of two lawsuits, one involving his former friend.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "paddington-2": {
+    "tmdbId": 346648,
+    "title": "Paddington 2",
+    "year": 2017,
+    "runtime": 104,
+    "posterPath": "/1OJ9vkD5xPt3skC6KguyXAgagRZ.jpg",
+    "genres": [
+      "Adventure",
+      "Comedy",
+      "Family"
+    ],
+    "overview": "Paddington, now happily settled with the Browns, picks up a series of odd jobs to buy the perfect present for his Aunt Lucy, but it is stolen.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "everything-everywhere-all-at-once": {
+    "tmdbId": 545611,
+    "title": "Everything Everywhere All at Once",
+    "year": 2022,
+    "runtime": 140,
+    "posterPath": "/u68AjlvlutfEIcpmbYpKcdi09ut.jpg",
+    "genres": [
+      "Action",
+      "Adventure",
+      "Science Fiction"
+    ],
+    "overview": "An aging Chinese immigrant is swept up in an insane adventure, where she alone can save what's important to her by connecting with the lives she could have led in other universes.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  },
+  "lost-in-translation": {
+    "tmdbId": 153,
+    "title": "Lost in Translation",
+    "year": 2003,
+    "runtime": 102,
+    "posterPath": "/3jCLmYDIIiSMPujbwygNpqdpM8N.jpg",
+    "genres": [
+      "Drama",
+      "Comedy",
+      "Romance"
+    ],
+    "overview": "Two lost souls visiting Tokyo -- the young, neglected wife of a photographer and a washed-up movie star shooting a TV commercial -- find an odd solace and pensive freedom to be real in each other's company, away from their lives in America.",
+    "importedAt": "2026-10-22T03:34:07.029Z"
+  }
+}

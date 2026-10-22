@@ -9,8 +9,9 @@ export type RecommendationFilm = {
   moods?: Mood[];
   delivery?: Delivery[];
   visual?: Visual[];
-  interruption?: number;
+  interruption?: number | null;
   providers: string[];
+  providerAvailabilityKnown?: boolean;
   year?: number;
   genres?: string[];
   note?: string;
@@ -59,9 +60,9 @@ export function buildRecommendationChoices<T extends RecommendationFilm>(options
 
   return films
     .filter((film) => {
-      const matchesProvider = providers.length === 0 || film.providers.some((provider) => providers.includes(provider));
+      const matchesProvider = providers.length === 0 || film.providerAvailabilityKnown === false || film.providers.some((provider) => providers.includes(provider));
       const runtimeMatches = runtimeWindowMatches(film, runtime);
-      const pauseFriendly = !interruptions || (film.interruption ?? 0) >= 4;
+      const pauseFriendly = !interruptions || film.interruption == null || film.interruption >= 4;
       const unseen = !seen.includes(film.title);
 
       return matchesProvider && runtimeMatches && pauseFriendly && unseen;
