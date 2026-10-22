@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { filmBySlug, films } from "../../../lib/catalog";
 
-const siteUrl = "https://shrugr.ro.to";
+const siteUrl = "https://shrugr.de5.net";
 
 type FilmPageProps = { params: Promise<{ slug: string }> };
 
@@ -18,7 +18,10 @@ export async function generateMetadata({ params }: FilmPageProps): Promise<Metad
   if (!film) return {};
 
   const title = `${film.title} (${film.year}) — Shrugr`;
-  const description = `${film.reason} ${film.runtime}-minute ${film.genres.join(" and ")} film. Explore why it might fit your night.`;
+  const synopsis = film.overview?.trim();
+  const description = synopsis
+    ? `${film.title} (${film.year}): ${synopsis}`.slice(0, 300)
+    : `${film.reason} ${film.runtime}-minute ${film.genres.join(" and ")} film. Explore why it might fit your night.`;
   const url = `${siteUrl}/films/${film.slug}`;
 
   return {
@@ -40,7 +43,7 @@ export default async function FilmPage({ params }: FilmPageProps) {
     "@context": "https://schema.org",
     "@type": "Movie",
     name: film.title,
-    dateCreated: `${film.year}`,
+    datePublished: `${film.year}`,
     duration: `PT${film.runtime}M`,
     genre: film.genres,
     image: film.poster,
@@ -60,6 +63,7 @@ export default async function FilmPage({ params }: FilmPageProps) {
           <h1>{film.title}</h1>
           <p className="editorial-meta">{film.year} <span>·</span> {film.runtime} min <span>·</span> {film.genres.join(" / ")}</p>
           <p className="editorial-lede">{film.reason}</p>
+          {film.overview && <section className="editorial-synopsis"><h2>About the film</h2><p>{film.overview}</p></section>}
           <section className="editorial-note"><h2>A little permission</h2><p>{film.note}</p></section>
           <p className="editorial-disclaimer">Streaming availability changes by region and is not verified here. Check your services directly.</p>
           <Link href="/" className="primary-button editorial-cta">Find a film for tonight <span aria-hidden="true">→</span></Link>

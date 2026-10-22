@@ -4,6 +4,13 @@ A context-aware movie picker: less scrolling, more watching. The solo picker fet
 
 See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the project status, roadmap, acceptance criteria, and remaining work.
 
+## Tech stack
+
+- **Languages:** TypeScript, JavaScript, HTML, CSS, SQL (PostgreSQL)
+- **Frameworks:** Next.js (React), Tailwind CSS
+- **Runtime and services:** Node.js, Supabase, TMDB API
+- **UI icons:** Lucide React
+
 ## Run locally
 
 1. Install Node.js 20.9 or newer.

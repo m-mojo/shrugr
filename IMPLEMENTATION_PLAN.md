@@ -1,7 +1,7 @@
 # Shrugr Implementation Plan
 
 **Product:** Shrugr — a context-aware movie picker  
-**Production domain target:** `shrugr.ro.to`  
+**Production domain:** `shrugr.de5.net`  
 **Status date:** 2026-10-22  
 **Plan status:** Local foundation, the core solo flow, the soft-preference recommendation contract, and basic SEO scaffolding are implemented. MVP includes TMDB integration, automated catalog imports, a managed catalog with editorial admin tools, and programmatic SEO with expanded structured data and dynamic share cards. Supabase is selected for the managed catalog; project provisioning and app integration remain pending. Multi-device group rooms are deferred.
 
@@ -75,7 +75,7 @@ Checklist notation: `[x]` complete, `[~]` partially implemented, `[ ]` not yet c
 **Status: Complete for the local prototype.**
 - [x] Create Next.js App Router + TypeScript + Tailwind project structure.
 - [x] Add local sample catalog and responsive UI shell.
-- [x] Add basic page metadata for `shrugr.ro.to`.
+- [x] Add basic page metadata for `shrugr.de5.net`.
 - [x] Confirm production build compiles.
 
 **Completion check:** `npm run build` completes successfully from the project root.
@@ -146,7 +146,7 @@ Checklist notation: `[x]` complete, `[~]` partially implemented, `[ ]` not yet c
 
 ### Phase 6 — Production launch, reliability, and growth
 **Status: Not started.**
-1. Select the production host and configure environments, deployment checks, rollback, and basic monitoring. Configure backups appropriate to the selected managed-catalog provider. Configure `shrugr.ro.to` DNS and TLS only with the owner’s hosting/DNS access.
+1. Select the production host and configure environments, deployment checks, rollback, and basic monitoring. Configure backups appropriate to the selected managed-catalog provider. Verify `shrugr.de5.net` DNS and TLS with the owner’s hosting/DNS access.
 2. Run end-to-end checks for the solo path, no-provider/no-match/all-seen cases, illustrative provider messaging, and mobile breakpoints.
 3. Audit accessibility, security headers, endpoint validation/rate limiting, privacy disclosures, data retention, dependency health, and third-party/API terms.
 4. Measure Core Web Vitals and bundle size. Keep the initial decision flow lightweight; defer nonessential media and animation, optimize images, and use server rendering/static generation where it benefits real pages.
@@ -170,7 +170,7 @@ Checklist notation: `[x]` complete, `[~]` partially implemented, `[ ]` not yet c
 ## Technical and operational decisions to settle
 
 - TMDB metadata integration and catalog refresh are MVP requirements; confirm current terms, attribution, rate limits, and caching before launch.
-- Vercel is the selected frontend deployment host. Supabase/Postgres is selected for the managed catalog; the project, initial schema, and solo-picker read connection are in place. Catalog seeding, admin integration, and production hardening remain outstanding.
+- Vercel is the selected frontend deployment host. Supabase/Postgres is selected for the managed catalog; the project, initial schema, and solo-picker read connection are in place. Catalog seeding, admin integration, and production hardening remain outstanding. The production domain is `shrugr.de5.net`.
 - Supabase Realtime remains deferred with multi-device rooms.
 - Editorial tagging definitions and quality-review ownership remain to be finalized.
 - Privacy/retention for analytics and group-room state remains to be finalized.

@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://shrugr.ro.to/sitemap.xml",
+    sitemap: "https://shrugr.de5.net/sitemap.xml",
   };
 }

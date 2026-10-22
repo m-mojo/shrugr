@@ -3,12 +3,11 @@ import { films } from "../lib/catalog";
 import { editorialCollections } from "../lib/seo-pages";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://shrugr.ro.to";
+  const baseUrl = "https://shrugr.de5.net";
 
   return [
     {
       url: baseUrl,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },

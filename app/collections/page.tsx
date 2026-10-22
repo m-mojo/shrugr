@@ -2,12 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { editorialCollections, getCollection } from "../../lib/seo-pages";
 
-const siteUrl = "https://shrugr.ro.to";
+const siteUrl = "https://shrugr.de5.net";
 
 export const metadata: Metadata = {
   title: "Movie collections for your kind of night — Shrugr",
   description: "Small, human-curated movie lists for different moods, runtimes, and kinds of evenings.",
   alternates: { canonical: `${siteUrl}/collections` },
+  openGraph: {
+    title: "Curated movie collections for your kind of night — Shrugr",
+    description: "Explore thoughtful movie lists for different moods, runtimes, and kinds of evenings.",
+    url: `${siteUrl}/collections`,
+    siteName: "Shrugr",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Curated movie collections — Shrugr",
+    description: "Small, human-curated movie lists for different kinds of evenings.",
+  },
 };
 
 export default function CollectionsIndexPage() {

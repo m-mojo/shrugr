@@ -71,6 +71,15 @@ export default function Home() {
   const [catalogFilms, setCatalogFilms] = useState(films);
   const [searchingLive, setSearchingLive] = useState(false);
   const [catalogSource, setCatalogSource] = useState<"saved" | "live">("saved");
+  const applicationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "Shrugr",
+    url: "https://shrugr.de5.net/",
+    applicationCategory: "EntertainmentApplication",
+    operatingSystem: "Any",
+    description: "A movie picker that helps people choose a film by available time, mood, and viewing vibe.",
+  };
 
   useEffect(() => {
     try {
@@ -158,6 +167,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(applicationJsonLd).replace(/</g, "\\u003c") }} />
       <header className="topbar">
         <button className="wordmark" aria-label="Shrugr home" onClick={() => setScreen("start")}><span className="brand-mark">s<span>.</span></span><span className="brand-name">shrugr</span></button>
         <div className="topbar-right"><span className="status-dot" /> <span>YOUR MOVIE, FOUND</span><button aria-label="Reset to home" className="icon-button" onClick={() => setScreen("start")}><X size={16} /></button></div>
@@ -210,7 +220,7 @@ export default function Home() {
         <button className="start-over" aria-label="Start over and choose a different movie" onClick={() => { setScreen("start"); setCurrent(null); }}>← &nbsp; Start over</button>
       </section>}
       {screen === "result" && !current && <section className="empty-result fade-in" aria-live="polite"><span className="empty-spark">✳</span><div className="eyebrow">NO MATCH THIS TIME</div><h1>That&apos;s a very specific kind of night.</h1><p>We couldn&apos;t find a film that fits every filter and service. Loosen one thing and we&apos;ll find your movie.</p><button className="primary-button" onClick={() => setScreen("vibe")}>Adjust my vibe <ArrowRight size={16} /></button><button className="text-button" onClick={() => { setProviders([]); setRuntime("any"); setInterruptions(false); setMood(null); setDelivery(null); setVisual(null); setScreen("vibe"); }}>Clear filters and try again</button></section>}
-      <footer className="site-footer"><span>© 2025 SHRUGR</span><span>MADE FOR THE MOMENT, NOT THE ALGORITHM <span className="footer-dot">✳</span></span><span><Link href="/collections">CURATED PICKS</Link></span><span><a href="https://shrugr.ro.to">SHRUGR.RO.TO</a></span></footer>
+      <footer className="site-footer"><span>© 2026 SHRUGR</span><span>MADE FOR THE MOMENT, NOT THE ALGORITHM <span className="footer-dot">✳</span></span><span><Link href="/collections">CURATED PICKS</Link></span><span><a href="https://shrugr.de5.net/">SHRUGR.DE5.NET</a></span></footer>
       {showToast && screen === "result" && <div className="toast" role="status"><Check size={15} /> {catalogSource === "live" ? "This is a live TMDB movie suggestion; streaming availability is not checked." : "Live movie search was unavailable; showing the saved catalog instead."}</div>}
     </main>
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { editorialCollections, getCollection } from "../../../lib/seo-pages";
 
-const siteUrl = "https://shrugr.ro.to";
+const siteUrl = "https://shrugr.de5.net";
 
 type CollectionPageProps = { params: Promise<{ slug: string }> };
 
@@ -43,7 +43,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
       "@type": "ListItem",
       position: index + 1,
       url: `${siteUrl}/films/${film.slug}`,
-      item: { "@type": "Movie", name: film.title, image: film.poster, dateCreated: `${film.year}` },
+      item: { "@type": "Movie", name: film.title, image: film.poster, datePublished: `${film.year}` },
     })),
     url,
   };
