@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test --import tsx lib/**/*.test.ts"
+    "test": "node --test --import tsx lib/**/*.test.ts",
+    "catalog:import": "tsx scripts/tmdb-import.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
