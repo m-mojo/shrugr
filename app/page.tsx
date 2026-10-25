@@ -15,7 +15,7 @@ import {
   RotateCw,
   Sparkles,
 } from "lucide-react";
-import type { Film } from "../lib/catalog";
+import { films, type Film } from "../lib/catalog";
 import {
   buildRecommendationChoices,
   pickRecommendation,
@@ -269,8 +269,76 @@ const affirmation = (film: Film, delivery: Delivery, interrupted: boolean) => {
   return note;
 };
 
+type FeaturedMovie = {
+  id: number;
+  title: string;
+  year: number | null;
+  poster: string;
+  source: "popular" | "top250" | "curated";
+};
+
+type FeaturedCollections = {
+  popular: FeaturedMovie[];
+  top250: FeaturedMovie[];
+};
+
+const curatedFeaturedMovies: FeaturedMovie[] = films.map((film, index) => ({
+  id: film.tmdbId ?? index,
+  title: film.title,
+  year: film.year,
+  poster: film.poster,
+  source: "curated",
+}));
+
+function FeaturedTile({
+  movies,
+  startIndex,
+  delay,
+  duration,
+}: {
+  movies: FeaturedMovie[];
+  startIndex: number;
+  delay: number;
+  duration: number;
+}) {
+  const [movieIndex, setMovieIndex] = useState(startIndex % movies.length);
+  const currentMovie = movies[movieIndex % movies.length];
+  const nextMovie = movies[(movieIndex + 1) % movies.length];
+
+  return (
+    <div className="movie-tile" aria-hidden="true">
+      <div
+        className="movie-tile-rotor"
+        style={{ animationDelay: `${delay}s`, animationDuration: `${duration}s` }}
+        onAnimationIteration={() => setMovieIndex((index) => (index + 1) % movies.length)}
+      >
+        {[currentMovie, nextMovie].map((movie, index) => (
+          <div className={`movie-tile-face${index === 1 ? " movie-tile-back" : ""}`} key={`${movie.id}-${index}`}>
+            <Image
+              src={movie.poster}
+              alt=""
+              fill
+              sizes="(max-width: 650px) 23vw, (max-width: 1100px) 18vw, 13vw"
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+            />
+            <span className="movie-tile-shade" />
+            <span className="movie-tile-title">
+              <b>{movie.title}</b>
+              {movie.year && <small>{movie.year}</small>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [screen, setScreen] = useState<"start" | "vibe" | "result">("start");
+  const [featuredCollections, setFeaturedCollections] = useState<FeaturedCollections>({
+    popular: curatedFeaturedMovies,
+    top250: curatedFeaturedMovies,
+  });
   const [screeningStep, setScreeningStep] = useState(0);
   const [runtime, setRuntime] = useState<RuntimeChoice>("any");
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("balanced");
@@ -302,6 +370,25 @@ export default function Home() {
     operatingSystem: "Any",
     description: "A movie picker that helps people choose a film by available time, mood, and viewing vibe.",
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/featured-movies", { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as Partial<FeaturedCollections> & { error?: string };
+        if (!response.ok) throw new Error(payload.error || `Movie charts returned HTTP ${response.status}.`);
+        if (!Array.isArray(payload.popular) || payload.popular.length === 0
+          || !Array.isArray(payload.top250) || payload.top250.length === 0) {
+          throw new Error("Movie charts returned no usable titles.");
+        }
+        setFeaturedCollections({ popular: payload.popular, top250: payload.top250 });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        console.warn("Live movie charts are unavailable; using curated picks.", error);
+      });
+    return () => controller.abort();
+  }, []);
 
   const matches = useMemo(
     () =>
@@ -413,19 +500,20 @@ export default function Home() {
       {searchError && <div className="toast live-search-error" role="alert">{searchError}</div>}
 
       {screen === "start" && <section className="welcome-page fade-in">
+        <div className="hero-collage-wrap" aria-hidden="true">
+          <div className="movie-collage">
+            {Array.from({ length: 24 }, (_, index) => {
+              const movies = index < 8 ? featuredCollections.popular : featuredCollections.top250;
+              return <FeaturedTile key={index} movies={movies} startIndex={index * 11} duration={8 + (index % 5) * 1.1} delay={index * 0.19} />;
+            })}
+          </div>
+        </div>
         <div className="hero-copy">
           <div className="eyebrow"><Sparkles size={13} /> THE ART OF PICKING NOTHING</div>
           <h1>Too many movies.<br /><span>One right now.</span></h1>
           <p className="hero-subtitle">Tell us your mood, your time, your vibe. We&apos;ll find the movie. You just press play.</p>
           <div className="start-actions"><button className="primary-button" onClick={beginScreening}>Find my movie <ArrowRight size={17} /></button></div>
           <div className="trust-line"><span><Clock3 size={14} /> UNDER 45 SECONDS</span><i /> <span><Moon size={14} /> NO ACCOUNT NEEDED</span></div>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="art-glow" />
-          <div className="film-card film-card-back"><div className="poster poster-purple"><span className="poster-caption">A WORLD<br />WITHIN WORLDS</span></div></div>
-          <div className="film-card film-card-front"><div className="poster poster-pink"><span className="poster-stamp">TONIGHT&apos;S<br />LITTLE ESCAPE</span><span className="poster-title">THE<br />GRAND<br /><em>BUDAPEST</em><br />HOTEL</span><span className="poster-credit">A FILM BY WES ANDERSON</span></div></div>
-          <div className="floating-note"><span className="note-spark">✳</span><div><b>your kind of night</b><small>just a little more you</small></div></div>
-          <div className="art-caption">A GOOD FILM DOESN&apos;T NEED A COMMITTEE.</div>
         </div>
         <div className="bottom-note"><span className="tiny-spark">✳</span> GOOD PICKING IS OVERRATED. GOOD WATCHING ISN&apos;T.</div>
       </section>}
