@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}<aside className="tmdb-attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</aside></body>
+      <body>{children}</body>
     </html>
   );
 }

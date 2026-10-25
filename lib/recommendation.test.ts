@@ -151,3 +151,45 @@ test("unknown provider and interruption data do not exclude live candidates", ()
 
   assert.deepEqual(matches, [liveFilm]);
 });
+
+test("top-rated mode ranks vibe fit before using TMDB ratings as a tie-breaker", () => {
+  const ratedFilms: RecommendationFilm[] = [
+    { title: "Highest rated", runtime: 100, voteAverage: 9.1, providers: [] },
+    { title: "Best vibe match", runtime: 100, voteAverage: 8.5, moods: ["learn"], delivery: ["soak"], visual: ["composed"], providers: [] },
+    { title: "Lower vibe match", runtime: 100, voteAverage: 8.5, providers: [] },
+  ];
+  const matches = buildRecommendationChoices({
+    films: ratedFilms,
+    providers: [],
+    runtime: "any",
+    interruptions: false,
+    mood: "learn",
+    delivery: "soak",
+    visual: "composed",
+    discoveryMode: "top-rated",
+    seen: [],
+  });
+
+  assert.deepEqual(matches.map((film) => film.title), ["Best vibe match", "Highest rated", "Lower vibe match"]);
+});
+
+test("IMDb top-rated mode ranks vibe fit before using IMDb ratings as a tie-breaker", () => {
+  const ratedFilms: RecommendationFilm[] = [
+    { title: "Highest IMDb rating", runtime: 100, imdbRating: 9.4, providers: [] },
+    { title: "Best vibe match", runtime: 100, imdbRating: 8.2, moods: ["learn"], delivery: ["soak"], visual: ["composed"], providers: [] },
+    { title: "Second-best vibe match", runtime: 100, imdbRating: 8.8, moods: ["learn"], delivery: ["soak"], providers: [] },
+  ];
+  const matches = buildRecommendationChoices({
+    films: ratedFilms,
+    providers: [],
+    runtime: "any",
+    interruptions: false,
+    mood: "learn",
+    delivery: "soak",
+    visual: "composed",
+    discoveryMode: "top-rated-imdb",
+    seen: [],
+  });
+
+  assert.deepEqual(matches.map((film) => film.title), ["Best vibe match", "Second-best vibe match", "Highest IMDb rating"]);
+});

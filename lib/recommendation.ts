@@ -2,7 +2,7 @@ export type Mood = "unwind" | "learn" | "hyped" | "feel" | "escape";
 export type Delivery = "hooked" | "soak" | "brain" | "simple";
 export type Visual = "energy" | "raw" | "composed" | "grounded";
 export type RuntimeChoice = "short" | "medium" | "long" | "any";
-export type DiscoveryMode = "balanced" | "trending" | "recent" | "popular" | "top-rated";
+export type DiscoveryMode = "balanced" | "trending" | "recent" | "popular" | "top-rated" | "top-rated-imdb";
 
 export type RecommendationFilm = {
   title: string;
@@ -17,6 +17,8 @@ export type RecommendationFilm = {
   year?: number;
   voteAverage?: number;
   voteCount?: number;
+  imdbRating?: number;
+  imdbVoteCount?: number;
   genres?: string[];
   note?: string;
   reason?: string;
@@ -36,6 +38,7 @@ export type RecommendationOptions<T extends RecommendationFilm = RecommendationF
   mood: Mood | null;
   delivery: Delivery | null;
   visual: Visual | null;
+  discoveryMode?: DiscoveryMode;
   seen: string[];
 };
 
@@ -66,7 +69,7 @@ export function scoreCandidate<T extends RecommendationFilm>(film: T, options: R
 }
 
 export function buildRecommendationChoices<T extends RecommendationFilm>(options: RecommendationOptions<T>): T[] {
-  const { films, providers, runtime, interruptions, mood, delivery, visual, seen } = options;
+  const { films, providers, runtime, interruptions, mood, delivery, visual, discoveryMode, seen } = options;
 
   return films
     .filter((film) => {
@@ -80,6 +83,16 @@ export function buildRecommendationChoices<T extends RecommendationFilm>(options
     .sort((a, b) => {
       const scoreDelta = scoreCandidate(b, options) - scoreCandidate(a, options);
       if (scoreDelta !== 0) return scoreDelta;
+
+      if (discoveryMode === "top-rated") {
+        const ratingDelta = (b.voteAverage ?? -1) - (a.voteAverage ?? -1);
+        if (ratingDelta !== 0) return ratingDelta;
+      }
+
+      if (discoveryMode === "top-rated-imdb") {
+        const ratingDelta = (b.imdbRating ?? -1) - (a.imdbRating ?? -1);
+        if (ratingDelta !== 0) return ratingDelta;
+      }
 
       const runtimeDelta = runtimeSortValue(a, runtime) - runtimeSortValue(b, runtime);
       if (runtimeDelta !== 0) return runtimeDelta;

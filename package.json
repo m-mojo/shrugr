@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "node --test --import tsx lib/**/*.test.ts",
+    "imdb:ratings:index": "tsx scripts/index-imdb-ratings.ts",
     "catalog:import": "tsx scripts/tmdb-import.ts",
     "catalog:posters": "tsx scripts/tmdb-import.ts --posters-only",
     "catalog:sync": "tsx scripts/tmdb-import.ts --sync-supabase",

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import type { Delivery, DiscoveryMode, Mood, RuntimeChoice, Visual } from "../../../lib/recommendation";
+import { getImdbRatings } from "../../../lib/imdb-ratings";
+import { buildMovieProfile } from "../../../lib/movie-profile";
+import type { DiscoveryMode, RuntimeChoice } from "../../../lib/recommendation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +40,8 @@ type TmdbMovie = {
   vote_average?: number;
   vote_count?: number;
   popularity?: number;
+  external_ids?: { imdb_id?: string | null };
+  keywords?: { keywords?: { id: number; name: string }[] };
 };
 
 type TmdbPage = {
@@ -51,40 +55,21 @@ function parseRuntime(value: string | null): RuntimeChoice {
 }
 
 function parseDiscoveryMode(value: string | null): DiscoveryMode {
-  return value === "trending" || value === "recent" || value === "popular" || value === "top-rated"
+  return value === "trending" || value === "recent" || value === "popular" || value === "top-rated" || value === "top-rated-imdb"
     ? value
     : "balanced";
 }
 
-function genreProfile(genres: string[]) {
-  const has = (...names: string[]) => names.some((name) => genres.includes(name));
-  const moods: Mood[] = [];
-  if (has("Comedy", "Family", "Romance", "Music")) moods.push("unwind");
-  if (has("Documentary", "History", "Science Fiction", "Mystery")) moods.push("learn");
-  if (has("Action", "Adventure", "Thriller", "War")) moods.push("hyped");
-  if (has("Drama", "Romance", "Music")) moods.push("feel");
-  if (has("Fantasy", "Science Fiction", "Animation", "Adventure")) moods.push("escape");
-
-  const delivery: Delivery[] = [];
-  if (has("Action", "Adventure", "Thriller", "Mystery")) delivery.push("hooked");
-  if (has("Drama", "Romance", "Music")) delivery.push("soak");
-  if (has("Mystery", "Science Fiction", "Crime", "Documentary")) delivery.push("brain");
-  if (has("Comedy", "Family", "Animation")) delivery.push("simple");
-
-  const visual: Visual[] = [];
-  if (has("Action", "Adventure", "Animation", "Music")) visual.push("energy");
-  if (has("Crime", "Horror", "Thriller", "War")) visual.push("raw");
-  if (has("Fantasy", "Science Fiction", "Mystery", "Animation")) visual.push("composed");
-  if (has("Drama", "Romance", "Documentary", "Family")) visual.push("grounded");
-
-  return { moods, delivery, visual };
+function tmdbDiscoveryMode(mode: DiscoveryMode): DiscoveryMode {
+  return mode === "top-rated-imdb" ? "top-rated" : mode;
 }
 
 function mapMovie(movie: TmdbMovie) {
   const genres = movie.genres?.length
     ? movie.genres.map(({ name }) => name)
     : (movie.genre_ids ?? []).map((id) => tmdbGenres[id]).filter((genre): genre is string => Boolean(genre));
-  const profile = genreProfile(genres);
+  const keywords = movie.keywords?.keywords?.map(({ name }) => name) ?? [];
+  const profile = buildMovieProfile(genres, movie.overview ?? "", keywords);
   const year = movie.release_date ? Number(movie.release_date.slice(0, 4)) || null : null;
   const runtime = Number.isInteger(movie.runtime) && movie.runtime! > 0 ? movie.runtime! : null;
   const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w780${movie.poster_path}` : null;
@@ -106,8 +91,10 @@ function mapMovie(movie: TmdbMovie) {
     providers: [],
     providerAvailabilityKnown: false,
     genericProfile: true,
-    note: "A broad suggestion based on TMDB genres and runtime. Shrugr hasn’t editorially reviewed this title yet.",
-    reason: genres.length ? `TMDB genres: ${genres.join(", ")}. This is a broad genre-based match, not a personal or editorial rating.` : "A live TMDB catalog suggestion; detailed film metadata is limited.",
+    note: "A broad suggestion based on TMDB genres, plot summary, and keywords. Shrugr hasn’t editorially reviewed this title yet.",
+    reason: genres.length
+      ? `Estimated from TMDB genres, plot summary, and keywords${keywords.length ? ` (${keywords.slice(0, 3).join(", ")})` : ""}; not editorially reviewed.`
+      : "A live TMDB catalog suggestion; detailed film metadata is limited.",
     overview: movie.overview ?? "",
   };
 }
@@ -118,17 +105,18 @@ async function discoverPage(
   runtimeChoice: RuntimeChoice,
   mode: DiscoveryMode,
 ): Promise<TmdbPage> {
-  const endpoint = mode === "trending"
+  const sourceMode = tmdbDiscoveryMode(mode);
+  const endpoint = sourceMode === "trending"
     ? `https://api.themoviedb.org/3/trending/movie/week?language=en-US&page=${page}`
     : null;
   const params = new URLSearchParams({
     language: "en-US",
     include_adult: "false",
     include_video: "false",
-    sort_by: mode === "recent" ? "primary_release_date.desc" : mode === "top-rated" ? "vote_average.desc" : "popularity.desc",
+    sort_by: sourceMode === "recent" ? "primary_release_date.desc" : sourceMode === "top-rated" ? "vote_average.desc" : "popularity.desc",
     page: String(page),
   });
-  if (mode === "top-rated" || mode === "balanced") params.set("vote_count.gte", "250");
+  if (sourceMode === "top-rated" || sourceMode === "balanced") params.set("vote_count.gte", "250");
   if (runtimeChoice === "short") params.set("with_runtime.lte", "89");
   if (runtimeChoice === "medium") {
     params.set("with_runtime.gte", "90");
@@ -146,7 +134,7 @@ async function discoverPage(
 }
 
 async function fetchMovieDetails(token: string, id: number): Promise<TmdbMovie | null> {
-  const response = await fetch(`https://api.themoviedb.org/3/movie/${id}?language=en-US`, {
+  const response = await fetch(`https://api.themoviedb.org/3/movie/${id}?language=en-US&append_to_response=keywords,external_ids`, {
     headers: { Authorization: `Bearer ${token}`, accept: "application/json" },
     cache: "no-store",
   });
@@ -172,6 +160,9 @@ export async function GET(request: Request) {
   const runtimeChoice = parseRuntime(new URL(request.url).searchParams.get("runtime"));
   const searchParams = new URL(request.url).searchParams;
   const mode = parseDiscoveryMode(searchParams.get("mode"));
+  if (mode === "top-rated-imdb" && !process.env.IMDB_RATINGS_TSV?.trim()) {
+    return NextResponse.json({ error: "IMDb top-rated mode is not configured on this server." }, { status: 503 });
+  }
   const excludedIds = new Set(
     (searchParams.get("exclude") ?? "")
       .split(",")
@@ -180,7 +171,9 @@ export async function GET(request: Request) {
       .map(Number),
   );
   try {
-    const modes: DiscoveryMode[] = mode === "balanced" ? ["popular", "top-rated"] : [mode];
+    const modes: DiscoveryMode[] = mode === "balanced"
+      ? ["popular", "top-rated"]
+      : [mode === "top-rated-imdb" ? "top-rated" : mode];
     const firstPages = await Promise.all(modes.map((sourceMode) => discoverPage(token, 1, runtimeChoice, sourceMode)));
     const totalPages = Math.max(...firstPages.map((page) => page.total_pages));
     const sampledPages = await Promise.all(firstPages.map(async (firstPage, index) => {
@@ -190,7 +183,7 @@ export async function GET(request: Request) {
         { length: Math.max(0, Math.min(firstPage.total_pages, 500) - 1) },
         (_, pageIndex) => pageIndex + 2,
       );
-      if (mode !== "recent") {
+      if (mode !== "recent" && sourceMode !== "top-rated") {
         for (let i = availablePages.length - 1; i > 0; i -= 1) {
           const j = Math.floor(Math.random() * (i + 1));
           [availablePages[i], availablePages[j]] = [availablePages[j], availablePages[i]];
@@ -204,9 +197,11 @@ export async function GET(request: Request) {
     const allMovies = sampledPages.flat().flatMap((page) => page.results);
     const uniqueMovies = [...new Map(allMovies.map((movie) => [movie.id, movie])).values()]
       .filter((movie) => !excludedIds.has(movie.id));
-    for (let i = uniqueMovies.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [uniqueMovies[i], uniqueMovies[j]] = [uniqueMovies[j], uniqueMovies[i]];
+    if (mode !== "top-rated" && mode !== "top-rated-imdb") {
+      for (let i = uniqueMovies.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [uniqueMovies[i], uniqueMovies[j]] = [uniqueMovies[j], uniqueMovies[i]];
+      }
     }
     const details: TmdbMovie[] = [];
     const candidates = uniqueMovies.slice(0, 24);
@@ -214,15 +209,43 @@ export async function GET(request: Request) {
       const batch = await Promise.all(candidates.slice(index, index + 6).map((movie) => fetchMovieDetails(token, movie.id)));
       details.push(...batch.filter((movie): movie is TmdbMovie => movie !== null));
     }
+    const imdbIds = details
+      .map((movie) => movie.external_ids?.imdb_id)
+      .filter((id): id is string => typeof id === "string" && /^tt\d+$/.test(id));
+    let imdbRatings = new Map<string, { averageRating: number; numVotes: number }>();
+    if (imdbIds.length > 0 && process.env.IMDB_RATINGS_TSV?.trim()) {
+      try {
+        imdbRatings = await getImdbRatings(imdbIds);
+      } catch (error) {
+        console.error("IMDb ratings could not be loaded.", error);
+        return NextResponse.json(
+          { error: "IMDb ratings could not be loaded. Check the IMDB_RATINGS_TSV server setting and file format." },
+          { status: 503 },
+        );
+      }
+    }
+    if (mode === "top-rated-imdb" && imdbRatings.size === 0) {
+      return NextResponse.json(
+        { error: "No IMDb ratings were found for this candidate batch. Rebuild the IMDb index or try another discovery mode." },
+        { status: 503 },
+      );
+    }
     const movies = details
-      .map(mapMovie)
-      .filter((movie): movie is NonNullable<ReturnType<typeof mapMovie>> => movie !== null)
+      .map((movie): (NonNullable<ReturnType<typeof mapMovie>> & { imdbRating?: number; imdbVoteCount?: number }) | null => {
+        const film = mapMovie(movie);
+        const imdbId = movie.external_ids?.imdb_id;
+        const imdbRating = imdbId ? imdbRatings.get(imdbId) : undefined;
+        return film && imdbRating ? { ...film, imdbRating: imdbRating.averageRating, imdbVoteCount: imdbRating.numVotes } : film;
+      })
+      .filter((movie): movie is NonNullable<ReturnType<typeof mapMovie>> & { imdbRating?: number; imdbVoteCount?: number } => movie !== null)
       .filter((movie) => {
         if (runtimeChoice === "short") return movie.runtime < 90;
         if (runtimeChoice === "medium") return movie.runtime >= 90 && movie.runtime <= 120;
         if (runtimeChoice === "long") return movie.runtime > 120;
         return true;
-      });
+      })
+      .filter((movie) => mode !== "top-rated-imdb" || movie.imdbRating != null)
+      .sort((a, b) => mode === "top-rated-imdb" ? (b.imdbRating ?? -1) - (a.imdbRating ?? -1) : 0);
 
     return NextResponse.json({ movies, source: "tmdb-live", totalPages }, {
       headers: { "Cache-Control": "private, no-store" },
