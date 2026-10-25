@@ -120,6 +120,7 @@ Checklist notation: `[x]` complete, `[~]` partially implemented, `[ ]` not yet c
 5. [~] Refine alternatives into two intentionally distinct backups (alternate pacing for the same intent, and alternate intent for similar pacing). The “I’ve seen this” action and seen-title exclusion exist; purposeful backup selection and exhaustion tests remain.
 6. [ ] Add or verify measured transitions and micro-interactions for context steps and result reveal. Respect reduced-motion preferences and keep the primary decision path usable without animation.
 7. [ ] Validate mobile-first card chunking, accessible controls, keyboard and screen-reader behavior, color contrast, and the under-45-second target with usability checks.
+8. [ ] Add behavior-based picking profiles: Film Nerd, Movie Critique, Film Bro, and Novice (mainstream films only).
 
 **Acceptance criteria:** optional style selection never blocks completion; recommendation reasons and affirmations are traceable to curated data; backups are meaningfully differentiated; seen-title replacement and empty states remain predictable; accessibility and mobile checks pass.
 
