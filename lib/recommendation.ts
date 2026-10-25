@@ -2,9 +2,11 @@ export type Mood = "unwind" | "learn" | "hyped" | "feel" | "escape";
 export type Delivery = "hooked" | "soak" | "brain" | "simple";
 export type Visual = "energy" | "raw" | "composed" | "grounded";
 export type RuntimeChoice = "short" | "medium" | "long" | "any";
+export type DiscoveryMode = "balanced" | "trending" | "recent" | "popular" | "top-rated";
 
 export type RecommendationFilm = {
   title: string;
+  tmdbId?: number;
   runtime: number;
   moods?: Mood[];
   delivery?: Delivery[];
@@ -13,10 +15,18 @@ export type RecommendationFilm = {
   providers: string[];
   providerAvailabilityKnown?: boolean;
   year?: number;
+  voteAverage?: number;
+  voteCount?: number;
   genres?: string[];
   note?: string;
   reason?: string;
 };
+
+export function recommendationIdentity(film: RecommendationFilm) {
+  return film.tmdbId
+    ? `tmdb:${film.tmdbId}`
+    : `title:${film.title.trim().toLowerCase()}`;
+}
 
 export type RecommendationOptions<T extends RecommendationFilm = RecommendationFilm> = {
   films: T[];
@@ -63,7 +73,7 @@ export function buildRecommendationChoices<T extends RecommendationFilm>(options
       const matchesProvider = providers.length === 0 || film.providerAvailabilityKnown === false || film.providers.some((provider) => providers.includes(provider));
       const runtimeMatches = runtimeWindowMatches(film, runtime);
       const pauseFriendly = !interruptions || film.interruption == null || film.interruption >= 4;
-      const unseen = !seen.includes(film.title);
+      const unseen = !seen.includes(recommendationIdentity(film)) && !seen.includes(film.title);
 
       return matchesProvider && runtimeMatches && pauseFriendly && unseen;
     })

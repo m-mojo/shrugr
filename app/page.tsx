@@ -17,12 +17,25 @@ import {
   X,
 } from "lucide-react";
 import type { Film } from "../lib/catalog";
-import { buildRecommendationChoices, pickRecommendation, type RuntimeChoice } from "../lib/recommendation";
+import {
+  buildRecommendationChoices,
+  pickRecommendation,
+  recommendationIdentity,
+  type DiscoveryMode,
+  type RuntimeChoice,
+} from "../lib/recommendation";
 
 type Mood = "unwind" | "learn" | "hyped" | "feel" | "escape";
 type Delivery = "hooked" | "soak" | "brain" | "simple";
 type Visual = "energy" | "raw" | "composed" | "grounded";
 const providerList = ["Netflix", "Max", "Prime Video", "Hulu", "Disney+", "Apple TV+", "MUBI", "Criterion"];
+const discoveryModes: { id: DiscoveryMode; label: string }[] = [
+  { id: "balanced", label: "Balanced mix" },
+  { id: "trending", label: "Trending" },
+  { id: "recent", label: "Recently released" },
+  { id: "popular", label: "Popular" },
+  { id: "top-rated", label: "Top rated (TMDB)" },
+];
 const moods: { id: Mood; label: string; icon: string; sub: string }[] = [
   { id: "unwind", label: "Unwind", icon: "☁️", sub: "Let the day go" },
   { id: "learn", label: "Get curious", icon: "◉", sub: "Feed your brain" },
@@ -58,12 +71,22 @@ export default function Home() {
   const [screen, setScreen] = useState<"start" | "vibe" | "result">("start");
   const [providers, setProviders] = useState<string[]>(["Netflix", "Max", "Prime Video"]);
   const [runtime, setRuntime] = useState<RuntimeChoice>("any");
+  const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("balanced");
   const [interruptions, setInterruptions] = useState(false);
   const [mood, setMood] = useState<Mood | null>(null);
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [visual, setVisual] = useState<Visual | null>(null);
   const [current, setCurrent] = useState<Film | null>(null);
-  const [seen, setSeen] = useState<string[]>([]);
+  const [excludedMovies, setExcludedMovies] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = window.localStorage.getItem("shrugr-excluded-movies");
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) && parsed.every((item) => typeof item === "string") ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [showBackups, setShowBackups] = useState(false);
   const [showVisuals, setShowVisuals] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -99,16 +122,26 @@ export default function Home() {
         mood,
         delivery,
         visual,
-        seen,
+        seen: excludedMovies,
       }),
-    [liveFilms, providers, runtime, interruptions, mood, delivery, visual, seen],
+    [liveFilms, providers, runtime, interruptions, mood, delivery, visual, excludedMovies],
   );
 
-  const chooseMovie = async (excludedTitles = seen) => {
+  const chooseMovie = async (excludedTitles = excludedMovies) => {
     setSearchingLive(true);
     setSearchError(null);
+    const exclusions = (current
+      ? [...new Set([...excludedTitles, recommendationIdentity(current)])]
+      : excludedTitles).slice(-100);
+    setExcludedMovies(exclusions);
+    try { localStorage.setItem("shrugr-excluded-movies", JSON.stringify(exclusions)); } catch { /* storage is optional */ }
     try {
-      const response = await fetch(`/api/movies?runtime=${runtime}`, { cache: "no-store" });
+      const params = new URLSearchParams({ runtime, mode: discoveryMode });
+      const excludedIds = exclusions
+        .filter((identity) => identity.startsWith("tmdb:"))
+        .map((identity) => identity.slice("tmdb:".length));
+      if (excludedIds.length > 0) params.set("exclude", excludedIds.join(","));
+      const response = await fetch(`/api/movies?${params}`, { cache: "no-store" });
       const payload = (await response.json()) as { movies?: Film[]; source?: string; error?: string };
       if (!response.ok) throw new Error(payload.error || `Live search returned HTTP ${response.status}.`);
       if (payload.source !== "tmdb-live") throw new Error("The movie service did not return live TMDB results.");
@@ -125,13 +158,16 @@ export default function Home() {
         mood,
         delivery,
         visual,
-        seen: excludedTitles,
+        seen: exclusions,
       });
       const pick = pickRecommendation(freshMatches, current);
       if (!pick) {
         throw new Error("No new live films matched your choices. Please try again or adjust your runtime.");
       }
 
+      const nextExclusions = [...new Set([...exclusions, recommendationIdentity(pick)])].slice(-100);
+      setExcludedMovies(nextExclusions);
+      try { localStorage.setItem("shrugr-excluded-movies", JSON.stringify(nextExclusions)); } catch { /* storage is optional */ }
       setLiveFilms(candidates);
       setCurrent(pick);
       setScreen("result");
@@ -155,9 +191,7 @@ export default function Home() {
   const backups = matches.filter((f) => f.title !== current?.title).slice(0, 2);
   const selectSeen = () => {
     if (!current) return;
-    const nextSeen = [...seen, current.title];
-    setSeen(nextSeen);
-    void chooseMovie(nextSeen);
+    void chooseMovie([...excludedMovies, recommendationIdentity(current)]);
   };
 
   return (
@@ -195,9 +229,13 @@ export default function Home() {
           <section className="question-block"><div className="question-title"><span className="question-number">01</span><div><h2>How much time have you got?</h2><p>We&apos;ll keep it within your window.</p></div></div><div className="choice-row">{([{ id: "short", title: "Under 90 min", sub: "A quick one" }, { id: "medium", title: "90–120 min", sub: "The sweet spot" }, { id: "long", title: "120+ min", sub: "Room for a saga" }, { id: "any", title: "Any length", sub: "I&apos;m all in" }] as { id: RuntimeChoice; title: string; sub: string }[]).map((v) => <button key={v.id} className={`choice-card ${runtime === v.id ? "active" : ""}`} onClick={() => setRuntime(v.id)} aria-pressed={runtime === v.id}><span className="choice-check">{runtime === v.id && <Check size={12} />}</span><b>{v.title}</b><small>{v.sub.replace("&apos;", "'")}</small></button>)}</div>
             <button className={`interrupt-toggle ${interruptions ? "checked" : ""}`} onClick={() => setInterruptions(!interruptions)} aria-pressed={interruptions}><span className="toggle-box">{interruptions && <Check size={12} />}</span><span><b>Life might happen</b><small>Prefer something easy to pause and pick back up</small></span><span className="toggle-aside">PAUSE-FRIENDLY</span></button>
           </section>
-          <section className="question-block"><div className="question-title"><span className="question-number">02</span><div><h2>What do you want to feel?</h2><p>Pick the energy you&apos;re in the mood for.</p></div></div><div className="mood-grid">{moods.map((item) => <button key={item.id} className={`mood-card ${mood === item.id ? "active" : ""}`} onClick={() => setMood(mood === item.id ? null : item.id)} aria-pressed={mood === item.id}><span className="mood-icon">{item.icon}</span><b>{item.label}</b><small>{item.sub}</small></button>)}</div></section>
-          <section className="question-block"><div className="question-title"><span className="question-number">03</span><div><h2>How should it unfold?</h2><p>Pick a way of watching, not a genre.</p></div></div><div className="delivery-row">{deliveries.map((item) => <button key={item.id} className={`delivery-card ${delivery === item.id ? "active" : ""}`} onClick={() => setDelivery(delivery === item.id ? null : item.id)} aria-pressed={delivery === item.id}><span>{item.icon}</span>{item.label}</button>)}</div></section>
-          <section className="question-block visual-block"><button className="visual-heading" onClick={() => setShowVisuals(!showVisuals)} aria-expanded={showVisuals}><div className="question-title"><span className="question-number">04</span><div><h2>Got a visual mood?</h2><p>Optional. Go with the look that calls to you.</p></div></div><ChevronDown size={17} className={showVisuals ? "rotated" : ""} /></button>{showVisuals && <div className="visual-grid">{visuals.map((item) => <button key={item.id} className={`visual-card ${item.swatch} ${visual === item.id ? "active" : ""}`} onClick={() => setVisual(visual === item.id ? null : item.id)} aria-pressed={visual === item.id}><span className="visual-select">{visual === item.id && <Check size={12} />}</span><b>{item.label}</b><small>{item.hint}</small></button>)}</div>}</section>
+          <section className="question-block discovery-block"><label className="question-title" htmlFor="discovery-mode"><span className="question-number">02</span><span><h2>What kind of picks should we look for?</h2><p>Choose a mix, what&apos;s trending, recent releases, popularity, or TMDB ratings.</p></span></label><select id="discovery-mode" className="discovery-select" value={discoveryMode} onChange={(event) => {
+            const selected = discoveryModes.find(({ id }) => id === event.currentTarget.value);
+            if (selected) setDiscoveryMode(selected.id);
+          }}>{discoveryModes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><p className="discovery-footnote">Ratings are from TMDB, not IMDb. Your past picks and skipped films stay out of future results on this device.</p></section>
+          <section className="question-block"><div className="question-title"><span className="question-number">03</span><div><h2>What do you want to feel?</h2><p>Pick the energy you&apos;re in the mood for.</p></div></div><div className="mood-grid">{moods.map((item) => <button key={item.id} className={`mood-card ${mood === item.id ? "active" : ""}`} onClick={() => setMood(mood === item.id ? null : item.id)} aria-pressed={mood === item.id}><span className="mood-icon">{item.icon}</span><b>{item.label}</b><small>{item.sub}</small></button>)}</div></section>
+          <section className="question-block"><div className="question-title"><span className="question-number">04</span><div><h2>How should it unfold?</h2><p>Pick a way of watching, not a genre.</p></div></div><div className="delivery-row">{deliveries.map((item) => <button key={item.id} className={`delivery-card ${delivery === item.id ? "active" : ""}`} onClick={() => setDelivery(delivery === item.id ? null : item.id)} aria-pressed={delivery === item.id}><span>{item.icon}</span>{item.label}</button>)}</div></section>
+          <section className="question-block visual-block"><button className="visual-heading" onClick={() => setShowVisuals(!showVisuals)} aria-expanded={showVisuals}><div className="question-title"><span className="question-number">05</span><div><h2>Got a visual mood?</h2><p>Optional. Go with the look that calls to you.</p></div></div><ChevronDown size={17} className={showVisuals ? "rotated" : ""} /></button>{showVisuals && <div className="visual-grid">{visuals.map((item) => <button key={item.id} className={`visual-card ${item.swatch} ${visual === item.id ? "active" : ""}`} onClick={() => setVisual(visual === item.id ? null : item.id)} aria-pressed={visual === item.id}><span className="visual-select">{visual === item.id && <Check size={12} />}</span><b>{item.label}</b><small>{item.hint}</small></button>)}</div>}</section>
           <div className="recommend-footer"><div><span className="footer-spark">✳</span> Your answers, your kind of movie.</div><button className="primary-button" onClick={() => void chooseMovie()} disabled={searchingLive}>{searchingLive ? "Searching TMDB…" : "Find my movie"} {!searchingLive && <ArrowRight size={17} />}</button></div>
         </div>
       </section>}
@@ -205,7 +243,7 @@ export default function Home() {
       {screen === "result" && current && <section className="result-page fade-in">
         <button className="back-button result-back" onClick={() => setScreen("vibe")}><ArrowLeft size={16} /> Change my vibe</button>
         <div className="result-layout"><div className="result-poster-wrap"><div className="result-poster"><Image src={current.poster} alt={`${current.title} poster`} width={780} height={1170} onError={(e) => { e.currentTarget.style.display = "none"; }} /><div className={`poster-fallback ${current.palette}`}><span className="fallback-kicker">TONIGHT&apos;S PICK</span><strong>{current.title}</strong><small>{current.year} · A shrugr selection</small></div><span className="poster-tag"><Sparkles size={12} /> {current.isLive ? "TMDB PICK" : "YOUR MATCH"}</span></div><div className="poster-under"><span>{current.isLive ? "LIVE TMDB SUGGESTION" : "CURATED FOR THIS MOMENT"}</span><span>✳</span></div></div>
-          <div className="result-copy"><div className="eyebrow"><Sparkles size={13} /> {current.isLive ? "A LIVE TMDB SUGGESTION" : "THIS ONE FEELS RIGHT"}</div><h1>{current.isLive && current.tmdbId ? <a href={`https://www.themoviedb.org/movie/${current.tmdbId}`} target="_blank" rel="noreferrer">{current.title}</a> : <Link href={`/films/${current.slug}`}>{current.title}</Link>}</h1><div className="movie-meta"><span>{current.year}</span><i /> <span>{Math.floor(current.runtime / 60)}h {current.runtime % 60 ? `${current.runtime % 60}m` : ""}</span><i /> <span>{current.genres.join(" · ")}</span></div>
+          <div className="result-copy"><div className="eyebrow"><Sparkles size={13} /> {current.isLive ? "A LIVE TMDB SUGGESTION" : "THIS ONE FEELS RIGHT"}</div><h1>{current.isLive && current.tmdbId ? <a href={`https://www.themoviedb.org/movie/${current.tmdbId}`} target="_blank" rel="noreferrer">{current.title}</a> : <Link href={`/films/${current.slug}`}>{current.title}</Link>}</h1><div className="movie-meta"><span>{current.year}</span><i /> <span>{Math.floor(current.runtime / 60)}h {current.runtime % 60 ? `${current.runtime % 60}m` : ""}</span><i /> <span>{current.genres.join(" · ")}</span>{current.voteAverage != null && <><i /><span>TMDB {current.voteAverage.toFixed(1)}/10</span></>}</div>
             <div className="affirmation"><div className="affirmation-label"><span>✳</span> {current.genericProfile ? "QUICK CONTEXT" : "A LITTLE PERMISSION"}</div><p>“{affirmation(current, delivery ?? "simple", interruptions)}”</p></div>
             <div className="fit-section"><h3>{current.genericProfile ? "ABOUT THIS SUGGESTION" : "WHY IT FITS RIGHT NOW"}</h3><ul><li><span>01</span>{current.genericProfile ? `TMDB lists a runtime of ${current.runtime} minutes.` : runtime !== "any" ? `Fits your ${runtime === "short" ? "under-90-minute" : runtime === "medium" ? "90–120 minute" : "open-ended"} window` : `${current.runtime} minutes, just right for tonight`}</li><li><span>02</span>{current.reason}</li>{interruptions && <li><span>03</span>{current.genericProfile || current.interruption == null ? "Pause-friendliness is unknown for this title." : "Easy to pause and find your place again"}</li>}<li><span>{interruptions ? "04" : "03"}</span>{current.providerAvailabilityKnown === false ? "Streaming availability was not checked." : `Sample catalog provider labels: ${current.providers.filter((p) => providers.length === 0 || providers.includes(p)).slice(0, 2).join(" and ") || "not matched to your selected services"} (not verified)`}</li></ul></div>
             <div className="watch-row"><div className="watch-label"><span className="live-dot" /> {current.providerAvailabilityKnown === false ? "AVAILABILITY UNKNOWN" : "SAMPLE LABELS"} <b>{current.providerAvailabilityKnown === false ? "Not checked" : current.providers.filter((p) => providers.length === 0 || providers.includes(p)).slice(0, 2).join(" · ") || "NO PROVIDER MATCH"}</b></div>{current.providerAvailabilityKnown === false ? <button className="primary-button watch-button" disabled><Play size={15} fill="currentColor" /> Streaming not checked</button> : <button className="primary-button watch-button" onClick={() => setShowToast(true)}><Play size={15} fill="currentColor" /> Availability info <ArrowRight size={15} /></button>}</div>

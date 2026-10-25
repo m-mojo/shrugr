@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildRecommendationChoices, pickRecommendation, type RecommendationFilm } from "./recommendation";
+import { buildRecommendationChoices, pickRecommendation, recommendationIdentity, type RecommendationFilm } from "./recommendation";
 
 const films: RecommendationFilm[] = [
   {
@@ -91,6 +91,26 @@ test("seen titles are excluded and score prefers stronger matches", () => {
   });
 
   assert.deepEqual(matches.map((film) => film.title), ["Bravo"]);
+});
+
+test("previously recommended TMDB IDs stay excluded when the title changes", () => {
+  const firstPick = { title: "Same title", tmdbId: 42, runtime: 100, providers: [] };
+  const alternateTitle = { ...firstPick, title: "Localized title" };
+  const unseen = { title: "Fresh film", tmdbId: 43, runtime: 100, providers: [] };
+
+  assert.deepEqual(
+    buildRecommendationChoices({
+      films: [alternateTitle, unseen],
+      providers: [],
+      runtime: "any",
+      interruptions: false,
+      mood: null,
+      delivery: null,
+      visual: null,
+      seen: [recommendationIdentity(firstPick)],
+    }),
+    [unseen],
+  );
 });
 
 test("empty match states are handled gracefully", () => {

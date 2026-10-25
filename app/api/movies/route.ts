@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Delivery, Mood, RuntimeChoice, Visual } from "../../../lib/recommendation";
+import type { Delivery, DiscoveryMode, Mood, RuntimeChoice, Visual } from "../../../lib/recommendation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +35,9 @@ type TmdbMovie = {
   overview?: string;
   genre_ids?: number[];
   genres?: { id: number; name: string }[];
+  vote_average?: number;
+  vote_count?: number;
+  popularity?: number;
 };
 
 type TmdbPage = {
@@ -45,6 +48,12 @@ type TmdbPage = {
 
 function parseRuntime(value: string | null): RuntimeChoice {
   return value === "short" || value === "medium" || value === "long" ? value : "any";
+}
+
+function parseDiscoveryMode(value: string | null): DiscoveryMode {
+  return value === "trending" || value === "recent" || value === "popular" || value === "top-rated"
+    ? value
+    : "balanced";
 }
 
 function genreProfile(genres: string[]) {
@@ -87,6 +96,8 @@ function mapMovie(movie: TmdbMovie) {
     title: movie.title,
     year,
     runtime,
+    voteAverage: Number.isFinite(movie.vote_average) ? movie.vote_average : undefined,
+    voteCount: Number.isFinite(movie.vote_count) ? movie.vote_count : undefined,
     poster,
     palette: "poster-blue",
     genres,
@@ -101,14 +112,23 @@ function mapMovie(movie: TmdbMovie) {
   };
 }
 
-async function discoverPage(token: string, page: number, runtimeChoice: RuntimeChoice): Promise<TmdbPage> {
+async function discoverPage(
+  token: string,
+  page: number,
+  runtimeChoice: RuntimeChoice,
+  mode: DiscoveryMode,
+): Promise<TmdbPage> {
+  const endpoint = mode === "trending"
+    ? `https://api.themoviedb.org/3/trending/movie/week?language=en-US&page=${page}`
+    : null;
   const params = new URLSearchParams({
     language: "en-US",
     include_adult: "false",
     include_video: "false",
-    sort_by: "popularity.desc",
+    sort_by: mode === "recent" ? "primary_release_date.desc" : mode === "top-rated" ? "vote_average.desc" : "popularity.desc",
     page: String(page),
   });
+  if (mode === "top-rated" || mode === "balanced") params.set("vote_count.gte", "250");
   if (runtimeChoice === "short") params.set("with_runtime.lte", "89");
   if (runtimeChoice === "medium") {
     params.set("with_runtime.gte", "90");
@@ -116,7 +136,7 @@ async function discoverPage(token: string, page: number, runtimeChoice: RuntimeC
   }
   if (runtimeChoice === "long") params.set("with_runtime.gte", "121");
 
-  const response = await fetch(`https://api.themoviedb.org/3/discover/movie?${params}`, {
+  const response = await fetch(endpoint ?? `https://api.themoviedb.org/3/discover/movie?${params}`, {
     headers: { Authorization: `Bearer ${token}`, accept: "application/json" },
     cache: "no-store",
   });
@@ -136,29 +156,54 @@ async function fetchMovieDetails(token: string, id: number): Promise<TmdbMovie |
 }
 
 export async function GET(request: Request) {
-  const token = process.env.TMDB_API_READ_ACCESS_TOKEN;
+  const token = process.env.TMDB_API_READ_ACCESS_TOKEN?.trim();
   if (!token) return NextResponse.json({ error: "Live movie search is not configured on the server." }, { status: 503 });
+  if (
+    /[\s"'`]/.test(token) ||
+    token.includes("TMDB_API_READ_ACCESS_TOKEN=") ||
+    /^Bearer\b/i.test(token)
+  ) {
+    return NextResponse.json(
+      { error: "TMDB_API_READ_ACCESS_TOKEN must contain only the raw token value, with no variable name, Bearer prefix, quotes, or line breaks." },
+      { status: 503 },
+    );
+  }
 
   const runtimeChoice = parseRuntime(new URL(request.url).searchParams.get("runtime"));
+  const searchParams = new URL(request.url).searchParams;
+  const mode = parseDiscoveryMode(searchParams.get("mode"));
+  const excludedIds = new Set(
+    (searchParams.get("exclude") ?? "")
+      .split(",")
+      .filter((id) => /^\d+$/.test(id))
+      .slice(0, 100)
+      .map(Number),
+  );
   try {
-    const firstPage = await discoverPage(token, 1, runtimeChoice);
-    const maxPage = Math.min(Math.max(firstPage.total_pages, 1), 500);
-    const pages = new Set([1]);
-    const availablePages = Array.from({ length: Math.max(0, maxPage - 1) }, (_, index) => index + 2);
-    for (let i = availablePages.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availablePages[i], availablePages[j]] = [availablePages[j], availablePages[i]];
-    }
-    availablePages.slice(0, 3).forEach((page) => pages.add(page));
-    const additionalPages = [...pages].filter((page) => page !== 1);
-    const otherResults = await Promise.all(additionalPages.map((page) => discoverPage(token, page, runtimeChoice)));
-    const allMovies = [
-      ...firstPage.results,
-      ...otherResults.flatMap((page) => page.results),
-    ];
-    const uniqueMovies = [...new Map(allMovies.map((movie) => [movie.id, movie])).values()];
-    // Shuffle the popular discovery pool, then fetch full details for a bounded batch.
-    // TMDB's discover endpoint does not include runtime, so detail requests are required.
+    const modes: DiscoveryMode[] = mode === "balanced" ? ["popular", "top-rated"] : [mode];
+    const firstPages = await Promise.all(modes.map((sourceMode) => discoverPage(token, 1, runtimeChoice, sourceMode)));
+    const totalPages = Math.max(...firstPages.map((page) => page.total_pages));
+    const sampledPages = await Promise.all(firstPages.map(async (firstPage, index) => {
+      const sourceMode = modes[index];
+      const pageCount = mode === "balanced" ? 1 : 3;
+      const availablePages = Array.from(
+        { length: Math.max(0, Math.min(firstPage.total_pages, 500) - 1) },
+        (_, pageIndex) => pageIndex + 2,
+      );
+      if (mode !== "recent") {
+        for (let i = availablePages.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [availablePages[i], availablePages[j]] = [availablePages[j], availablePages[i]];
+        }
+      }
+      const additionalPages = await Promise.all(
+        availablePages.slice(0, pageCount).map((page) => discoverPage(token, page, runtimeChoice, sourceMode)),
+      );
+      return [firstPage, ...additionalPages];
+    }));
+    const allMovies = sampledPages.flat().flatMap((page) => page.results);
+    const uniqueMovies = [...new Map(allMovies.map((movie) => [movie.id, movie])).values()]
+      .filter((movie) => !excludedIds.has(movie.id));
     for (let i = uniqueMovies.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [uniqueMovies[i], uniqueMovies[j]] = [uniqueMovies[j], uniqueMovies[i]];
@@ -179,11 +224,17 @@ export async function GET(request: Request) {
         return true;
       });
 
-    return NextResponse.json({ movies, source: "tmdb-live", totalPages: firstPage.total_pages }, {
+    return NextResponse.json({ movies, source: "tmdb-live", totalPages }, {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Live movie search failed.";
-    return NextResponse.json({ error: message }, { status: message.includes("rate limit") ? 429 : 502 });
+    const errorMessage = error instanceof Error ? error.message : "";
+    const rateLimited = errorMessage === "TMDB rate limit reached. Please retry shortly.";
+    const discoveryFailure = /^TMDB discovery failed with HTTP \d+\.$/.test(errorMessage);
+    const message = rateLimited || discoveryFailure
+      ? errorMessage
+      : "TMDB request failed. Check the server token setting and try again.";
+    console.error("Live TMDB search failed.", message);
+    return NextResponse.json({ error: message }, { status: rateLimited ? 429 : 502 });
   }
 }

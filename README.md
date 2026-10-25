@@ -22,13 +22,13 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the project status, r
 
 - Responsive, accessible solo movie-night flow.
 - Provider selection persisted in localStorage.
-- Runtime, pause-friendliness, mood, delivery style, and optional visual-vibe filters.
+- Runtime, pause-friendliness, mood, delivery style, optional visual-vibe filters, and balanced/trending/recent/popular/TMDB top-rated discovery modes.
 - Deterministic catalog matching, viewing affirmations, explanations, alternatives, spin again, and seen-title skip.
 - Static film detail pages and curated collection landing pages with canonical metadata, Movie/ItemList structured data, dynamic social preview images, and sitemap entries.
 - Repeatable server-side TMDB metadata import script; imported metadata overlays the curated local catalog while preserving Shrugr-authored tags and notes.
 - Supabase catalog schema with row-level security for curated catalog content. A server-only TMDB-to-Supabase catalog sync command refreshes metadata and posters while retaining Shrugr-authored tags. Admin editing and SEO routes are not yet database-backed.
-- Live TMDB movie discovery on every recommendation request. The server samples randomized pages from TMDB discovery and fetches a bounded set of movie details, then applies generic genre-derived vibe scoring. It is not an exhaustive scan or TMDB editorial ranking; streaming availability and pause-friendliness remain unknown. Live-search failures are shown to the user instead of falling back to the local catalog.
-- Basic metadata configured for `https://shrugr.ro.to`.
+- Live TMDB movie discovery on every recommendation request. Balanced mode samples popular and well-rated candidates; other modes use TMDB trending, release-date, popularity, or top-rated discovery. Recommendations and skipped titles are excluded across vibe changes on the same device. Vibe matching still uses broad genre-derived estimates; streaming availability and pause-friendliness remain unknown. Ratings come from TMDB, not IMDb. Live-search failures are shown to the user instead of falling back to the local catalog.
+- Basic metadata configured for `https://shrugr.de5.net`.
 
 ## Current prototype notes
 
